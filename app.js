@@ -5,12 +5,161 @@ const norm=s=>String(s??"").trim().replace(/\s+/g," ").toUpperCase();
 function parseCSV(t){let rows=[],row=[],cell="",q=false;for(let i=0;i<t.length;i++){let c=t[i],n=t[i+1];if(c=='"'&&q&&n=='"'){cell+='"';i++;continue}if(c=='"'){q=!q;continue}if(c==","&&!q){row.push(cell);cell="";continue}if((c=="\n"||c=="\r")&&!q){if(c=="\r"&&n=="\n")i++;row.push(cell);cell="";if(row.some(v=>v.trim()))rows.push(row);row=[];continue}cell+=c}if(cell||row.length){row.push(cell);if(row.some(v=>v.trim()))rows.push(row)}if(!rows.length)return[];let h=rows.shift().map(x=>x.trim());return rows.map(r=>Object.fromEntries(h.map((k,i)=>[k,(r[i]??"").trim()])))}
 const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 function render(p){
- const fixed=C.slice(0,6), islam=C.slice(6,14), kristen=C.slice(14,23), pub=C.slice(23,33), waw=C.slice(33,43), tail=["Jumlah Nilai"];
- const th=(x,r=1)=>`<th rowspan="${r}">${esc(x)}</th>`;
- const group=(x,a)=>`<th colspan="${a.length}">${esc(x)}</th>`;
- const subs=a=>a.map(x=>`<th>${esc(x)}</th>`).join("");
- document.querySelector("#scoreTable").innerHTML=
- `<thead><tr class="group-row">${fixed.map(x=>th(x,2)).join("")}${group("Keagamaan Islam",islam)}${group("Keagamaan Kristen & Katolik",kristen)}${group("Public Speaking",pub)}${group("Wawancara",waw)}${tail.map(x=>th(x,2)).join("")}</tr><tr class="sub-row">${subs(islam)}${subs(kristen)}${subs(pub)}${subs(waw)}</tr></thead><tbody><tr>${[...C.filter(x=>x!=="Keterangan")].map(x=>`<td class="${x==="Jumlah Nilai"?"final":""}">${esc(p[x])||"—"}</td>`).join("")}</tr></tbody>`;
-}
+   // Membaca agama peserta dari CSV
+  const agama = String(p.Agama || "")
+    .trim()
+    .toUpperCase();
+
+  const isIslam = agama === "ISLAM";
+
+  const isKristen =
+    agama === "KRISTEN" ||
+    agama === "KATOLIK" ||
+    agama === "KRISTEN/KATOLIK" ||
+    agama === "KRISTEN & KATOLIK";
+
+  // Identitas + Skolastik
+  const fixed = C.slice(0,6);
+
+  // Kelompok nilai sesuai struktur JS kamu sekarang
+  const islam = C.slice(6,14);
+  const kristen = C.slice(14,23);
+  const pub = C.slice(23,33);
+  const waw = C.slice(33,43);
+
+  const tail = ["Jumlah Nilai"];
+
+  let groups = [];
+
+  // =========================
+  // PESERTA ISLAM
+  // =========================
+
+  if(isIslam){
+
+    groups = [
+      {
+        title:"Keagamaan Islam",
+        cols:islam
+      },
+      {
+        title:"Public Speaking",
+        cols:pub
+      },
+      {
+        title:"Wawancara",
+        cols:waw
+      }
+    ];
+
+  }
+
+  // =========================
+  // PESERTA KRISTEN / KATOLIK
+  // =========================
+
+  else if(isKristen){
+
+    groups = [
+      {
+        title:"Keagamaan Kristen & Katolik",
+        cols:kristen
+      },
+      {
+        title:"Public Speaking",
+        cols:pub
+      },
+      {
+        title:"Wawancara",
+        cols:waw
+      }
+    ];
+
+  }
+
+  // =========================
+  // KALAU AGAMA KOSONG / TIDAK DIKENAL
+  // =========================
+
+  else{
+
+    groups = [
+      {
+        title:"Public Speaking",
+        cols:pub
+      },
+      {
+        title:"Wawancara",
+        cols:waw
+      }
+    ];
+
+  }
+
+  // Header biasa
+  const th = (x) =>
+    `<th rowspan="2">${esc(x)}</th>`;
+
+  // Header kelompok
+  const group = (g) =>
+    `<th colspan="${g.cols.length}">
+      ${esc(g.title)}
+    </th>`;
+
+  // Sub-header
+  const subs = (g) =>
+    g.cols.map(x =>
+      `<th>${esc(x)}</th>`
+    ).join("");
+
+  // Kolom yang benar-benar ditampilkan
+  const visibleColumns = [
+    ...fixed,
+    ...groups.flatMap(g => g.cols),
+    ...tail
+  ];
+
+  document.querySelector("#scoreTable").innerHTML = `
+
+    <thead>
+
+      <tr class="group-row">
+
+        ${fixed.map(th).join("")}
+
+        ${groups
+          .map(group)
+          .join("")}
+
+        ${tail.map(th).join("")}
+
+      </tr>
+
+      <tr class="sub-row">
+
+        ${groups
+          .map(subs)
+          .join("")}
+
+      </tr>
+
+    </thead>
+
+    <tbody>
+
+      <tr>
+
+        ${visibleColumns
+          .map(x => `
+            <td class="${x === "Jumlah Nilai" ? "final" : ""}">
+              ${esc(p[x]) || "—"}
+            </td>
+          `)
+          .join("")}
+
+      </tr>
+
+    </tbody>
+  `;}
 document.querySelector("#form").addEventListener("submit",async e=>{e.preventDefault();let m=document.querySelector("#msg");m.textContent="";try{let r=await fetch("data/peserta.csv?v="+Date.now(),{cache:"no-store"});if(!r.ok)throw 0;let d=parseCSV(await r.text()),p=d.find(x=>norm(x.Nama)==norm(document.querySelector("#name").value)&&norm(x.Kelas)==norm(document.querySelector("#class").value)&&x.tahun_lahir==y.value&&norm(x.Pilihan)==norm(document.querySelector("#division").value));if(!p){m.textContent="Data tidak ditemukan. Periksa nama, kelas, tahun lahir, dan pilihan.";return}let s=(p.status||"red").toLowerCase(),card=document.querySelector("#resultCard");card.className="result "+s;document.querySelector("#status").textContent=s=="blue"?"LOLOS":s=="yellow"?"LOLOS BERSYARAT":"TIDAK LOLOS";document.querySelector("#title").textContent=p.judul||"Hasil Seleksi";document.querySelector("#rname").textContent=p.Nama||"—";document.querySelector("#rclass").textContent=p.Kelas||"—";document.querySelector("#rdivision").textContent=p.Pilihan||"—";document.querySelector("#desc").textContent=p.keterangan||"Silakan mengikuti informasi selanjutnya dari panitia.";document.querySelector("#icon").textContent=s=="blue"?"✓":s=="yellow"?"!":"×";render(p);document.querySelector("#result").classList.remove("hidden");document.querySelector("#result").scrollIntoView({behavior:"smooth",block:"start"})}catch(e){m.textContent="Database belum tersedia. Pastikan data/peserta.csv sudah di-upload ke GitHub."}});
 document.querySelector("#reset").onclick=()=>{document.querySelector("#form").reset();document.querySelector("#result").classList.add("hidden");document.querySelector("#cek").scrollIntoView({behavior:"smooth"})};
