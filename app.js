@@ -679,7 +679,7 @@ function render(p){
     "Gestur",
     "Ekspresi",
     "Kesesuaian Isi",
-    "Kelancaran Public Speaking"
+    "Kelancaran"
 
   ];
 
