@@ -21,17 +21,19 @@ const norm = s =>
 
 /* =========================================================
    MEMBERSIHKAN NILAI CSV
-   Supaya 23,5 / 87,5 / 53,33 tetap terbaca
-   termasuk jika CSV memiliki """23,5"""
    ========================================================= */
 
 function cleanValue(v){
   let value = String(v ?? "").trim();
 
-  // Hapus BOM jika ada
   value = value.replace(/^\uFEFF/, "");
 
-  // Hilangkan tanda kutip berlapis dari Excel/CSV
+  /*
+   * Membersihkan tanda kutip berlapis.
+   * Contoh:
+   * """23,5""" -> 23,5
+   * ""23,5""   -> 23,5
+   */
   while(
     value.length >= 2 &&
     value.startsWith('"') &&
@@ -46,7 +48,23 @@ function cleanValue(v){
 
 /* =========================================================
    PARSER CSV
-   Mendukung koma di dalam angka seperti "23,5"
+   Mendukung angka dengan koma:
+   "23,5"
+   "53,33"
+   "87,5"
+
+   Juga menangani header yang namanya sama.
+   Contoh:
+
+   Sub Total
+   Sub Total
+   Sub Total
+
+   akan menjadi:
+
+   Sub Total
+   Sub Total_2
+   Sub Total_3
    ========================================================= */
 
 function parseCSV(t){
@@ -61,27 +79,28 @@ function parseCSV(t){
     const c = t[i];
     const n = t[i + 1];
 
-    // tanda kutip ganda di dalam field
+    // Tanda kutip ganda di dalam field
     if(c === '"' && q && n === '"'){
       cell += '"';
       i++;
       continue;
     }
 
-    // buka/tutup tanda kutip
+    // Buka / tutup tanda kutip
     if(c === '"'){
       q = !q;
       continue;
     }
 
-    // koma = pemisah kolom, tetapi hanya jika tidak sedang di dalam quote
+    // Koma sebagai pemisah kolom
+    // hanya jika tidak sedang berada dalam tanda kutip
     if(c === "," && !q){
       row.push(cell);
       cell = "";
       continue;
     }
 
-    // akhir baris
+    // Akhir baris
     if((c === "\n" || c === "\r") && !q){
 
       if(c === "\r" && n === "\n"){
@@ -102,8 +121,9 @@ function parseCSV(t){
     cell += c;
   }
 
-  // sisa data
+  // Sisa data terakhir
   if(cell || row.length){
+
     row.push(cell);
 
     if(row.some(v => v.trim())){
@@ -115,23 +135,63 @@ function parseCSV(t){
     return [];
   }
 
-  // Header
-  const h = rows.shift().map(x =>
+
+  /* =======================================================
+     HEADER CSV
+     ======================================================= */
+
+  const originalHeaders = rows.shift().map(x =>
     cleanValue(x)
       .trim()
       .replace(/^\uFEFF/, "")
   );
 
-  // Data
+
+  /* =======================================================
+     HEADER DUPLIKAT
+     ======================================================= */
+
+  const headers = [];
+  const counter = {};
+
+  originalHeaders.forEach(h => {
+
+    if(counter[h] === undefined){
+
+      counter[h] = 1;
+      headers.push(h);
+
+    }else{
+
+      counter[h]++;
+
+      headers.push(
+        `${h}_${counter[h]}`
+      );
+
+    }
+
+  });
+
+
+  /* =======================================================
+     DATA
+     ======================================================= */
+
   return rows.map(r => {
 
     const obj = {};
 
-    h.forEach((k, i) => {
-      obj[k] = cleanValue(r[i] ?? "");
+    headers.forEach((k, i) => {
+
+      obj[k] = cleanValue(
+        r[i] ?? ""
+      );
+
     });
 
     return obj;
+
   });
 }
 
@@ -148,14 +208,22 @@ const esc = v =>
 
 
 /* =========================================================
-   RENDER TABEL NILAI
+   RENDER TABEL
    ========================================================= */
 
 function render(p){
 
-  const agama = norm(p.agama || p.Agama || "");
+  const agama =
+    norm(
+      p.agama ||
+      p.Agama ||
+      ""
+    );
 
-  const isIslam = agama === "ISLAM";
+
+  const isIslam =
+    agama === "ISLAM";
+
 
   const isKristen =
     agama === "KRISTEN" ||
@@ -163,7 +231,7 @@ function render(p){
 
 
   /* =======================================================
-     MENGAMBIL NILAI DARI CSV
+     MENGAMBIL NILAI
      ======================================================= */
 
   const val = (...keys) => {
@@ -174,12 +242,15 @@ function render(p){
         Object.prototype.hasOwnProperty.call(p, k)
       ){
 
-        const value = cleanValue(p[k]);
+        const value =
+          cleanValue(p[k]);
 
         if(value !== ""){
           return value;
         }
+
       }
+
     }
 
     return "—";
@@ -187,11 +258,15 @@ function render(p){
 
 
   /* =======================================================
-     HELPER HEADER / CELL
+     HELPER
      ======================================================= */
 
-  const th = (text, attrs = "") =>
+  const th = (
+    text,
+    attrs = ""
+  ) =>
     `<th ${attrs}>${esc(text)}</th>`;
+
 
   const td = (...keys) =>
     `<td>${esc(val(...keys))}</td>`;
@@ -214,14 +289,17 @@ function render(p){
     "Skolastik"
   ]){
 
-    r1 += th(k, 'rowspan="3"');
+    r1 += th(
+      k,
+      'rowspan="3"'
+    );
 
     body += td(k);
   }
 
 
   /* =======================================================
-     KEAGAMAAN
+     KEAGAMAAN ISLAM
      ======================================================= */
 
   if(isIslam){
@@ -253,23 +331,62 @@ function render(p){
     );
 
 
-    r3 += th("Rukun Islam");
-    r3 += th("Rukun Iman");
-    r3 += th("Toleransi Beragama");
+    r3 += th(
+      "Rukun Islam"
+    );
 
-    r3 += th("Tajwid");
-    r3 += th("Kefasihan");
-    r3 += th("Kelancaran");
+    r3 += th(
+      "Rukun Iman"
+    );
+
+    r3 += th(
+      "Toleransi Beragama"
+    );
+
+    r3 += th(
+      "Tajwid"
+    );
+
+    r3 += th(
+      "Kefasihan"
+    );
+
+    r3 += th(
+      "Kelancaran"
+    );
 
 
-    body += td("Wudhu");
-    body += td("Sholat");
-    body += td("Rukun Islam");
-    body += td("Rukun Iman");
-    body += td("Toleransi Beragama");
-    body += td("Tajwid");
-    body += td("Kefasihan");
-    body += td("Kelancaran");
+    body += td(
+      "Wudhu"
+    );
+
+    body += td(
+      "Sholat"
+    );
+
+    body += td(
+      "Rukun Islam"
+    );
+
+    body += td(
+      "Rukun Iman"
+    );
+
+    body += td(
+      "Toleransi Beragama"
+    );
+
+    body += td(
+      "Tajwid"
+    );
+
+    body += td(
+      "Kefasihan"
+    );
+
+    body += td(
+      "Kelancaran"
+    );
 
 
     r1 += th(
@@ -277,13 +394,28 @@ function render(p){
       'rowspan="3"'
     );
 
+
+    /*
+     * Sub Total pertama.
+     * Karena CSV memiliki header "Sub Total"
+     * yang berulang, gunakan nama pertama.
+     */
+
     body += `
       <td class="subtotal">
-        ${esc(val("Sub Total Keagamaan Islam"))}
+        ${esc(
+          val("Sub Total")
+        )}
       </td>
     `;
 
   }
+
+
+  /* =======================================================
+     KEAGAMAAN KRISTEN & KATOLIK
+     ======================================================= */
+
   else if(isKristen){
 
     r1 += th(
@@ -308,32 +440,71 @@ function render(p){
     );
 
 
-    r3 += th("Ibadah ke Gereja");
-    r3 += th("Pelayanan di Gereja");
-    r3 += th("Lagu Pujian");
+    r3 += th(
+      "Ibadah ke Gereja"
+    );
 
-    r3 += th("Doa Bapa Kami");
-    r3 += th("Sepuluh Perintah Allah");
-    r3 += th("Berdoa dan Membaca Al Kitab");
+    r3 += th(
+      "Pelayanan di Gereja"
+    );
 
-    r3 += th("Kebiasaan Baik");
-    r3 += th("Menghormati Orang Tua");
+    r3 += th(
+      "Lagu Pujian"
+    );
+
+    r3 += th(
+      "Doa Bapa Kami"
+    );
+
+    r3 += th(
+      "Sepuluh Perintah Allah"
+    );
+
+    r3 += th(
+      "Berdoa dan Membaca Al Kitab"
+    );
+
+    r3 += th(
+      "Kebiasaan Baik"
+    );
+
+    r3 += th(
+      "Menghormati Orang Tua"
+    );
 
 
-    body += td("Ibadah ke Gereja");
-    body += td("Pelayanan di Gereja");
-    body += td("Lagu Pujian");
+    body += td(
+      "Ibadah ke Gereja"
+    );
 
-    body += td("Doa Bapa Kami");
-    body += td("Sepuluh Perintah Allah");
+    body += td(
+      "Pelayanan di Gereja"
+    );
+
+    body += td(
+      "Lagu Pujian"
+    );
+
+    body += td(
+      "Doa Bapa Kami"
+    );
+
+    body += td(
+      "Sepuluh Perintah Allah"
+    );
 
     body += td(
       "Berdoa dan Membaca Alkitab",
       "Berdoa dan Membaca Al Kitab"
     );
 
-    body += td("Kebiasaan Baik");
-    body += td("Menghormati Orang Tua");
+    body += td(
+      "Kebiasaan Baik"
+    );
+
+    body += td(
+      "Menghormati Orang Tua"
+    );
 
 
     r1 += th(
@@ -341,15 +512,20 @@ function render(p){
       'rowspan="3"'
     );
 
+
+    /*
+     * Sub Total Kristen/Katolik pertama.
+     * Di CSV nama header-nya "SubTotal".
+     */
+
     body += `
       <td class="subtotal">
         ${esc(
-          val(
-            "Sub Total Keagamaan Kristen & Katolik"
-          )
+          val("SubTotal")
         )}
       </td>
     `;
+
   }
 
 
@@ -358,6 +534,7 @@ function render(p){
      ======================================================= */
 
   const pub = [
+
     "Intonasi",
     "Artikulasi",
     "Volume Suara",
@@ -367,6 +544,7 @@ function render(p){
     "Ekspresi",
     "Kesesuaian Isi",
     "Kelancaran Public Speaking"
+
   ];
 
 
@@ -397,10 +575,16 @@ function render(p){
   );
 
 
+  /*
+   * Sub Total Public Speaking.
+   * Karena header "Sub Total" ketiga
+   * diberi nama Sub Total_3 oleh parser.
+   */
+
   body += `
     <td class="subtotal">
       ${esc(
-        val("Sub Total Public Speaking")
+        val("Sub Total_3")
       )}
     </td>
   `;
@@ -411,6 +595,7 @@ function render(p){
      ======================================================= */
 
   const waw = [
+
     "Sikap & Perilaku",
     "Komunikasi",
     "Karakter",
@@ -420,6 +605,7 @@ function render(p){
     "Konsistensi",
     "MPK - OSIS",
     "Komitmen"
+
   ];
 
 
@@ -450,10 +636,14 @@ function render(p){
   );
 
 
+  /*
+   * Sub Total Wawancara.
+   */
+
   body += `
     <td class="subtotal">
       ${esc(
-        val("Sub Total Wawancara")
+        val("Sub Total_5")
       )}
     </td>
   `;
@@ -479,10 +669,12 @@ function render(p){
 
 
   /* =======================================================
-     MASUKKAN TABEL KE HTML
+     TAMPILKAN TABEL
      ======================================================= */
 
-  document.querySelector("#scoreTable").innerHTML = `
+  document.querySelector(
+    "#scoreTable"
+  ).innerHTML = `
 
     <thead>
 
@@ -518,157 +710,217 @@ function render(p){
 
 document
   .querySelector("#form")
-  .addEventListener("submit", async e => {
+  .addEventListener(
+    "submit",
+    async e => {
 
-    e.preventDefault();
-
-    const m = document.querySelector("#msg");
-
-    m.textContent = "";
+      e.preventDefault();
 
 
-    try{
+      const m =
+        document.querySelector("#msg");
 
-      const r = await fetch(
-        "data/peserta.csv?v=" + Date.now(),
-        {
-          cache: "no-store"
+
+      m.textContent = "";
+
+
+      try{
+
+        const r =
+          await fetch(
+            "data/peserta.csv?v=" +
+            Date.now(),
+            {
+              cache: "no-store"
+            }
+          );
+
+
+        if(!r.ok){
+          throw new Error(
+            "CSV tidak ditemukan"
+          );
         }
-      );
 
 
-      if(!r.ok){
-        throw new Error("CSV tidak ditemukan");
+        const d =
+          parseCSV(
+            await r.text()
+          );
+
+
+        const name =
+          document.querySelector(
+            "#name"
+          ).value;
+
+
+        const kelas =
+          document.querySelector(
+            "#class"
+          ).value;
+
+
+        const year =
+          y.value;
+
+
+        const division =
+          document.querySelector(
+            "#division"
+          ).value;
+
+
+        const p =
+          d.find(x =>
+
+            norm(x.Nama) ===
+              norm(name)
+
+            &&
+
+            norm(x.Kelas) ===
+              norm(kelas)
+
+            &&
+
+            String(
+              x.tahun_lahir
+            ).trim() ===
+              String(year).trim()
+
+            &&
+
+            norm(x.Pilihan) ===
+              norm(division)
+
+          );
+
+
+        if(!p){
+
+          m.textContent =
+            "Data tidak ditemukan. Periksa nama, kelas, tahun lahir, dan pilihan.";
+
+          return;
+
+        }
+
+
+        /* =================================================
+           STATUS
+           ================================================= */
+
+        const s =
+          (
+            p.status ||
+            "red"
+          ).toLowerCase();
+
+
+        const card =
+          document.querySelector(
+            "#resultCard"
+          );
+
+
+        card.className =
+          "result " + s;
+
+
+        document.querySelector(
+          "#status"
+        ).textContent =
+
+          s === "blue"
+            ? "LOLOS"
+            : s === "yellow"
+              ? "LOLOS BERSYARAT"
+              : "TIDAK LOLOS";
+
+
+        document.querySelector(
+          "#title"
+        ).textContent =
+          p.judul ||
+          "Hasil Seleksi";
+
+
+        document.querySelector(
+          "#rname"
+        ).textContent =
+          p.Nama ||
+          "—";
+
+
+        document.querySelector(
+          "#rclass"
+        ).textContent =
+          p.Kelas ||
+          "—";
+
+
+        document.querySelector(
+          "#rdivision"
+        ).textContent =
+          p.Pilihan ||
+          "—";
+
+
+        document.querySelector(
+          "#desc"
+        ).textContent =
+          p.keterangan ||
+          "Silakan mengikuti informasi selanjutnya dari panitia.";
+
+
+        document.querySelector(
+          "#icon"
+        ).textContent =
+
+          s === "blue"
+            ? "✓"
+            : s === "yellow"
+              ? "!"
+              : "×";
+
+
+        /* =================================================
+           RENDER TABEL
+           ================================================= */
+
+        render(p);
+
+
+        /* =================================================
+           TAMPILKAN HASIL
+           ================================================= */
+
+        document
+          .querySelector("#result")
+          .classList
+          .remove("hidden");
+
+
+        document
+          .querySelector("#result")
+          .scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+
       }
+      catch(e){
 
-
-      const d = parseCSV(
-        await r.text()
-      );
-
-
-      const name =
-        document.querySelector("#name").value;
-
-      const kelas =
-        document.querySelector("#class").value;
-
-      const year =
-        y.value;
-
-      const division =
-        document.querySelector("#division").value;
-
-
-      const p = d.find(x =>
-
-        norm(x.Nama) === norm(name) &&
-
-        norm(x.Kelas) === norm(kelas) &&
-
-        String(x.tahun_lahir).trim() ===
-        String(year).trim() &&
-
-        norm(x.Pilihan) === norm(division)
-
-      );
-
-
-      if(!p){
+        console.error(e);
 
         m.textContent =
-          "Data tidak ditemukan. Periksa nama, kelas, tahun lahir, dan pilihan.";
+          "Database belum tersedia. Pastikan data/peserta.csv sudah di-upload ke GitHub.";
 
-        return;
       }
 
-
-      /* ===================================================
-         STATUS
-         =================================================== */
-
-      const s =
-        (p.status || "red").toLowerCase();
-
-
-      const card =
-        document.querySelector("#resultCard");
-
-
-      card.className =
-        "result " + s;
-
-
-      document.querySelector("#status").textContent =
-        s === "blue"
-          ? "LOLOS"
-          : s === "yellow"
-            ? "LOLOS BERSYARAT"
-            : "TIDAK LOLOS";
-
-
-      document.querySelector("#title").textContent =
-        p.judul || "Hasil Seleksi";
-
-
-      document.querySelector("#rname").textContent =
-        p.Nama || "—";
-
-
-      document.querySelector("#rclass").textContent =
-        p.Kelas || "—";
-
-
-      document.querySelector("#rdivision").textContent =
-        p.Pilihan || "—";
-
-
-      document.querySelector("#desc").textContent =
-        p.keterangan ||
-        "Silakan mengikuti informasi selanjutnya dari panitia.";
-
-
-      document.querySelector("#icon").textContent =
-        s === "blue"
-          ? "✓"
-          : s === "yellow"
-            ? "!"
-            : "×";
-
-
-      /* ===================================================
-         RENDER TABEL
-         =================================================== */
-
-      render(p);
-
-
-      /* ===================================================
-         TAMPILKAN HASIL
-         =================================================== */
-
-      document
-        .querySelector("#result")
-        .classList
-        .remove("hidden");
-
-
-      document
-        .querySelector("#result")
-        .scrollIntoView({
-          behavior: "smooth",
-          block: "start"
-        });
-
     }
-    catch(e){
-
-      m.textContent =
-        "Database belum tersedia. Pastikan data/peserta.csv sudah di-upload ke GitHub.";
-
-    }
-
-  });
+  );
 
 
 /* =========================================================
