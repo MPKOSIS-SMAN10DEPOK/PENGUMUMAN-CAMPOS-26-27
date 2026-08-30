@@ -2,3 +2,33 @@
 
 /* Rincian nilai: layout tabel mengikuti struktur Excel */
 .scoreBox{overflow:hidden}.tableWrap{width:100%;overflow-x:auto;overflow-y:hidden;border:1px solid #cfd6dd;-webkit-overflow-scrolling:touch}.scoreTable{border-collapse:collapse;min-width:2050px;width:max-content;background:#fff;color:#172033;font-size:10px}.scoreTable th,.scoreTable td{border:1px solid #cfd6dd;padding:8px 7px;text-align:center;vertical-align:middle;white-space:nowrap}.scoreTable thead .group-row th{background:#eee;color:#111;font-weight:700}.scoreTable thead .sub-row th{background:#f5f5f5;font-size:9px;font-weight:700}.scoreTable thead .leaf-row th{background:#fafafa;font-size:9px;font-weight:700}.scoreTable td{min-width:65px;height:40px}.scoreTable td:first-child{min-width:190px;text-align:left}.scoreTable td.subtotal{font-weight:700;background:#f3f6f9}.scoreTable td.final{font-weight:800;background:#eef5fb}.scoreTable th:first-child{min-width:190px}@media(max-width:760px){.scoreTable{min-width:2050px;font-size:9px}.scoreTable th,.scoreTable td{padding:8px 6px}.scoreTable td:first-child{min-width:170px}}
+/* VIDEO DISPLAY 2 */
+.aboutVideo {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.aboutVideo video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+/* MOBILE */
+@media (max-width:760px) {
+  .aboutVideo {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 4px;
+  }
+
+  .aboutVideo video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
