@@ -9,7 +9,7 @@ for(let i = 2000; i <= 2026; i++){
 
 
 /* =========================================================
-   NORMALISASI TEKS
+   NORMALISASI
    ========================================================= */
 
 const norm = s =>
@@ -21,19 +21,17 @@ const norm = s =>
 
 /* =========================================================
    MEMBERSIHKAN NILAI CSV
+   Contoh:
+   """92,5""" -> 92,5
+   "92,5"     -> 92,5
    ========================================================= */
 
 function cleanValue(v){
+
   let value = String(v ?? "").trim();
 
   value = value.replace(/^\uFEFF/, "");
 
-  /*
-   * Membersihkan tanda kutip berlapis.
-   * Contoh:
-   * """23,5""" -> 23,5
-   * ""23,5""   -> 23,5
-   */
   while(
     value.length >= 2 &&
     value.startsWith('"') &&
@@ -48,23 +46,6 @@ function cleanValue(v){
 
 /* =========================================================
    PARSER CSV
-   Mendukung angka dengan koma:
-   "23,5"
-   "53,33"
-   "87,5"
-
-   Juga menangani header yang namanya sama.
-   Contoh:
-
-   Sub Total
-   Sub Total
-   Sub Total
-
-   akan menjadi:
-
-   Sub Total
-   Sub Total_2
-   Sub Total_3
    ========================================================= */
 
 function parseCSV(t){
@@ -93,7 +74,6 @@ function parseCSV(t){
     }
 
     // Koma sebagai pemisah kolom
-    // hanya jika tidak sedang berada dalam tanda kutip
     if(c === "," && !q){
       row.push(cell);
       cell = "";
@@ -137,7 +117,7 @@ function parseCSV(t){
 
 
   /* =======================================================
-     HEADER CSV
+     HEADER
      ======================================================= */
 
   const originalHeaders = rows.shift().map(x =>
@@ -149,6 +129,16 @@ function parseCSV(t){
 
   /* =======================================================
      HEADER DUPLIKAT
+     
+     Contoh:
+     Sub Total
+     Sub Total
+     Sub Total
+
+     menjadi:
+     Sub Total
+     Sub Total_2
+     Sub Total_3
      ======================================================= */
 
   const headers = [];
@@ -295,6 +285,7 @@ function render(p){
     );
 
     body += td(k);
+
   }
 
 
@@ -396,9 +387,8 @@ function render(p){
 
 
     /*
-     * Sub Total pertama.
-     * Karena CSV memiliki header "Sub Total"
-     * yang berulang, gunakan nama pertama.
+     * SUBTOTAL KEAGAMAAN ISLAM
+     * Kolom pertama "Sub Total"
      */
 
     body += `
@@ -514,8 +504,8 @@ function render(p){
 
 
     /*
-     * Sub Total Kristen/Katolik pertama.
-     * Di CSV nama header-nya "SubTotal".
+     * SUBTOTAL KRISTEN/KATOLIK
+     * Header di CSV adalah "SubTotal"
      */
 
     body += `
@@ -543,7 +533,7 @@ function render(p){
     "Gestur",
     "Ekspresi",
     "Kesesuaian Isi",
-    "Kelancaran Public Speaking"
+    "Kelancaran"
 
   ];
 
@@ -576,15 +566,17 @@ function render(p){
 
 
   /*
-   * Sub Total Public Speaking.
-   * Karena header "Sub Total" ketiga
-   * diberi nama Sub Total_3 oleh parser.
+   * PENTING:
+   * Sub Total Public Speaking adalah
+   * "Sub Total_2"
+   *
+   * BUKAN Sub Total_3
    */
 
   body += `
     <td class="subtotal">
       ${esc(
-        val("Sub Total_3")
+        val("Sub Total_2")
       )}
     </td>
   `;
@@ -603,7 +595,7 @@ function render(p){
     "Dukungan",
     "Manajemen Waktu",
     "Konsistensi",
-    "MPK - OSIS",
+    "MPK-OSIS",
     "Komitmen"
 
   ];
@@ -625,7 +617,12 @@ function render(p){
 
     r3 += th(k);
 
-    body += td(k);
+    body += td(
+      k,
+      k === "MPK-OSIS"
+        ? "MPK-OSIS"
+        : k
+    );
 
   });
 
@@ -637,13 +634,17 @@ function render(p){
 
 
   /*
-   * Sub Total Wawancara.
+   * PENTING:
+   * Sub Total Wawancara adalah
+   * "Sub Total_3"
+   *
+   * BUKAN Sub Total_5
    */
 
   body += `
     <td class="subtotal">
       ${esc(
-        val("Sub Total_5")
+        val("Sub Total_3")
       )}
     </td>
   `;
@@ -669,7 +670,7 @@ function render(p){
 
 
   /* =======================================================
-     TAMPILKAN TABEL
+     MASUKKAN KE TABLE
      ======================================================= */
 
   document.querySelector(
@@ -886,7 +887,7 @@ document
 
 
         /* =================================================
-           RENDER TABEL
+           RENDER
            ================================================= */
 
         render(p);
